@@ -1,0 +1,237 @@
+<?php
+define('ADMIN_PASS', 'password');
+
+function strip_chars($var)
+{
+   return trim(str_replace("\r", NULL, htmlspecialchars(stripslashes(strip_tags($var)), ENT_QUOTES)));
+}
+
+if (isset($_POST['password']))
+{
+   $password = md5($_POST['password']);
+   if ($password == md5(ADMIN_PASS))
+   {
+      setcookie('password', $password);
+   }
+}
+else
+{
+   $password = isset($_COOKIE['password']) ? $_COOKIE['password'] : NULL;
+}
+if (isset($_GET['admin']) && $_GET['admin'] == 'logout')
+{
+   setcookie('password', '');
+   unset($_COOKIE['password'], $password);
+   header("Location: ".$_SERVER['PHP_SELF']);
+   exit;
+}
+else
+if (isset($_GET['admin']) && $_GET['admin'] == 'delete')
+{
+   if ($password == md5(ADMIN_PASS))
+   {
+      if ($file = fopen('./sendmail.php', 'r'))
+      {
+          $data = '';
+          while (!feof($file))
+          {
+             $line = fgets($file, 4096);
+             list($timestamp) = explode(chr(02), trim($line));
+             if ($timestamp == $_GET['msg'])
+             {
+                $data .= fread($file, filesize('./sendmail.php'));
+                fclose($file);
+                if (!$file = fopen('./sendmail.php', 'w'))
+                {
+                   break;
+                }
+                fwrite($file, $data);
+                fclose($file);
+                break;
+             }
+             else
+             {
+                $data .= $line;
+             }
+         }
+      }
+   }
+   header("Location: ".$_SERVER['PHP_SELF']);
+   exit;
+}
+if($_SERVER['REQUEST_METHOD'] == 'POST')
+{
+   $_POST = str_replace(chr(02), ' ', $_POST);
+   $ip = $_SERVER['REMOTE_ADDR'];
+   $name = strip_chars($_POST['name']);
+   $subject = strip_chars($_POST['subject']);
+   $email = strip_chars($_POST['email']);
+   $website = strip_chars($_POST['website']);
+   $message = str_replace("\n", "<br>", strip_chars($_POST['message']));
+   $timestamp = time();
+   if (!(empty($name) || empty($message)))
+   {
+      $file = fopen('./sendmail.php', 'a+');
+      $data = $timestamp . chr(02) . $name . chr(02) . $subject . chr(02) . $email . chr(02) . $website . chr(02) . $message . chr(02) . $ip . "\n";
+      fwrite($file, $data);
+      fclose($file);
+      $mailto = "admin@putturtown.com";
+      $subject = "Someone signed your guestbook!";
+      $header  = "From: admin@putturtown.com"."\r\n";
+      $header .= "Reply-To: admin@putturtown.com"."\r\n";
+      $header .= "MIME-Version: 1.0"."\r\n";
+      $header .= "Content-Type: text/plain; charset=utf-8"."\r\n";
+      $header .= "Content-Transfer-Encoding: 8bit"."\r\n";
+      $header .= "X-Mailer: PHP v".phpversion();
+      $message = "Someone has signed your guestbook!";
+      mail($mailto, $subject, $message, $header);
+   }
+   header("Location: ".$_SERVER['PHP_SELF']);
+   exit;
+}
+?>
+<html>
+<head>
+<title></title>
+<style type="text/css">
+body
+{
+   background-color: #B4B4B4;
+   color: #125EC6;
+}
+td
+{
+   font-family: Arial;
+   color: #125EC6;
+   font-size: 13px;
+}
+input, textarea
+{
+   background-color: #FFFFFF;
+   color: #125EC6;
+   font-size: 13px;
+   border-style: solid;
+   border-width: 1px;
+   border-color: #125EC6;
+}
+p.title
+{
+   font-family: Arial;
+   font-size: 19px;
+   color: #0F448E;
+   font-weight: bold;
+}
+.banner
+{
+   font-family: Arial;
+   font-size: 13px;
+   background-color: #ABCAF6;
+   color: #0F448E;
+   font-weight: bold;
+}
+.message
+{
+   font-family: Arial;
+   font-size: 13px;
+   background-color: #E0EBFB;
+   color: #125EC6;
+}
+a:link, a:visited
+{
+   color: #125EC6;
+}
+a:hover
+{
+   color: #125EC6;
+}
+</style>
+</head>
+<body>
+<?php
+if (isset($_GET['admin']))
+{
+   if ($_GET['admin'] == 'login')
+   {
+      echo "<center>\n";
+      echo "<p class=\"title\">Guestbook login</p>\n";
+      echo "<form method=\"post\" action=\"".$_SERVER['PHP_SELF']."\"><p><input type=\"password\" name=\"password\" size=\"20\" /> <input type=\"submit\" value=\"Login\" name=\"submit\" /></p></form>\n";
+      echo "</center>\n";
+   }
+}
+else
+{
+   echo "<p align=\"center\" class=\"title\"></p>\n";
+   if ($password != md5(ADMIN_PASS))
+   {
+      echo "<form action=\"".$_SERVER['PHP_SELF']."\" method=\"post\">\n";
+      echo "<table width=\"100%\" style=\"background-color:#C3D9F8;\">\n";
+      echo "   <tr>\n";
+      echo "      <td width=\"6\"></td>\n";
+      echo "      <td><input type=\"text\" value=\"\" name=\"name\" style=\"width:100%;\"/></td>\n";
+      echo "   </tr>\n";
+      echo "   <tr>\n";
+      echo "      <td></td>\n";
+      echo "      <td><textarea name=\"message\" rows=\"3\" style=\"width:100%;\"></textarea></td>\n";
+      echo "   </tr>\n";
+      echo "   <tr>\n";
+      echo "      <td></td>\n";
+      echo "      <td><input type=\"submit\" name=\"Submit\" value=\"\"/>";
+      echo "</td>\n";
+      echo "   </tr>\n";
+      echo "</table>\n";
+      echo "</form>\n";
+   }
+
+   if(filesize('./sendmail.php') == 0)
+   {
+      echo "<font style=\"font-family:Arial;color:#125EC6;font-size:13px;\">No posts found.<br></font>\n";
+   }
+   else
+   {
+      $items = file('./sendmail.php');
+      $items = array_reverse($items);
+      str_replace("<", "&lt;", $items);
+      str_replace(">", "&gt;", $items);
+      str_replace("\n", "<br>\n", $items);
+      foreach($items as $line)
+      {
+         list($timestamp, $name, $subject, $email, $website, $message, $ip) = explode(chr(02), trim($line));
+         $topic = "\n<div class=\"banner\">";
+         $topic .= date('m/d/Y H:i:s',$timestamp) . " ";
+         if ($email != "")
+         {
+            $topic .= "<a href=\"mailto:$email\">";
+         }
+         $topic .= "$name";
+         if ($email != "")
+         {
+            $topic .= "</a>";
+         }
+         if ($website != "")
+         {
+            $website = eregi_replace("^http://", "", $website);
+            $topic .= " (<a href=\"http://$website\" target=\"_blank\">$website</a>) - ";
+         }
+         else
+         {
+            $topic .= " - ";
+         }
+         $topic .= "$subject</div>\n";
+         $topic .= "<div class=\"message\">$message</div>\n";
+         echo $topic;
+         if ($password == md5(ADMIN_PASS))
+         {
+            echo "<div class=\"banner\"><a href=\"".$_SERVER['PHP_SELF']."?admin=delete&amp;msg=$timestamp\">[delete]</a> <a href=\"http://whois.sc/".$ip."\" target=\"_blank\" title=\"".$ip."\">[whois]</a></div>\n";
+         }
+         echo "<br>\n";
+      }
+   }
+   echo "<br>\n";
+   if ($password == md5(ADMIN_PASS))
+   {
+      echo "<a href=\"".$_SERVER['PHP_SELF']."?admin=logout\"><font style=\"font-family:Arial;color:#125EC6;font-size:13px;\">Logout</a><br></font>\n";
+   }
+}
+?>
+</body>
+</html>

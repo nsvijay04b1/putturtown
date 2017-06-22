@@ -1,0 +1,95 @@
+<?php
+
+//include the main validation script
+require_once "formvalidator.php";
+
+$show_form=true;
+
+if(isset($_POST['Submit']))
+{// The form is submitted
+
+    //Setup Validations
+    $validator = new FormValidator();
+    $validator->addValidation("name","req","Please fill in Name");
+    $validator->addValidation("email","email","The input for Email should be a valid email value");
+    $validator->addValidation("email","req","Please fill in Email");
+	$validator->addValidation("comment","req","Please fill in Comments ");
+    //Now, validate the form
+    if($validator->ValidateForm())
+    {
+        //Validation success. 
+        //Here we can proceed with processing the form 
+        //(like sending email, saving to Database etc)
+        // In this example, we just display a message
+        echo "<h2>Validation Success!</h2>";
+        $show_form=false;
+    }
+    else
+    {
+        echo "<B>Validation Errors:</B>";
+
+        $error_hash = $validator->GetErrors();
+        foreach($error_hash as $inpname => $inp_err)
+        {
+            echo "<p>$inpname : $inp_err</p>\n";
+        }  
+		
+		echo "Please try again";
+        echo "<BR>";
+        echo "<a href='viewguestbook.html'>View guestbook for example ?</a>";
+        echo "<BR>";
+         echo "<a href='index.html'>back 2 PutturTown to try again</a>";
+
+    }//else
+}//if(isset($_POST['Submit']))
+
+if(false == $show_form)
+{
+
+$host="208.91.198.197"; // Host name 
+$username="ptuser"; // Mysql username 
+$password="M.B.Road123"; // Mysql password 
+$db_name="db_admin"; // Database name 
+$tbl_name="guestbook"; // Table name 
+
+// Connect to server and select database.
+mysql_connect("$host", "$username", "$password")or die("cannot connect server "); 
+mysql_select_db("$db_name")or die("cannot select DB");
+
+$datetime=date("y-m-d h:i:s"); //date time
+
+$name="$_POST[name]";
+$email="$_POST[email]";
+$comment="$_POST[comment]";
+
+
+
+//$sql="SELECT MAX( `id` ) FROM  `guestbook`";
+$id = mysql_result(mysql_query("SELECT MAX( `id` ) FROM  `guestbook`"),0);
+$id = ++$id;
+
+
+//$sql="INSERT INTO `$tbl_name`(`name`, `email`, `comment`, `datetime`)VALUES('$_POST['name']', '$_POST['email']', '$_POST['comment']', '$datetime')";
+$sql="INSERT INTO `$tbl_name`(`id`,`name`, `email`, `comment`, `datetime`)VALUES('$id','$name', '$email', '$comment', '$datetime')";
+//$sql="INSERT INTO `$tbl_name`(`name`, `email`, `comment`, `datetime`)VALUES('vijay', 'test@gmail.com', 'testing', '$datetime')";
+$result=mysql_query($sql);
+
+//check if query successful 
+if($result){
+echo "Successful";
+echo "<BR>";
+
+// link to view guestbook page
+echo "<a href='viewguestbook.html'>View guestbook</a>";
+echo "<BR>";
+echo "<a href='index.html'>back 2 PutturTown</a>";
+}
+
+else {
+echo "ERROR";
+}
+mysql_close();
+}
+?>
+
+
